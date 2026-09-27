@@ -3,6 +3,7 @@
 const mineflayer = require('mineflayer');
 const { Movements, pathfinder, goals } = require('mineflayer-pathfinder');
 const { GoalBlock } = goals;
+
 const config = require('./settings.json');
 
 const express = require('express');
@@ -19,7 +20,6 @@ const PORT = process.env.PORT || 5000;
 
 const botState = {
   connected: false,
-  waitingForEmptyServer: false,
   lastActivity: null,
   reconnectAttempts: 0,
   startTime: Date.now(),
@@ -113,10 +113,6 @@ h1 {
   color: #ff5555;
 }
 
-.waiting {
-  color: #ffaa00;
-}
-
 </style>
 
 </head>
@@ -128,116 +124,39 @@ h1 {
 <h1>🤖 AFK Bot Dashboard</h1>
 
 <div class="card">
-
-<div class="label">
-Status
+<div class="label">Status</div>
+<div id="status" class="value">Loading...</div>
 </div>
-
-<div
-  id="status"
-  class="value"
->
-Loading...
-</div>
-
-</div>
-
 
 <div class="card">
-
-<div class="label">
-Server
+<div class="label">Server</div>
+<div id="server" class="value">Loading...</div>
 </div>
-
-<div
-  id="server"
-  class="value"
->
-Loading...
-</div>
-
-</div>
-
 
 <div class="card">
-
-<div class="label">
-Bot
+<div class="label">Bot</div>
+<div id="bot" class="value">Loading...</div>
 </div>
-
-<div
-  id="bot"
-  class="value"
->
-Loading...
-</div>
-
-</div>
-
 
 <div class="card">
-
-<div class="label">
-Player lain
+<div class="label">Player Lain</div>
+<div id="players" class="value">Loading...</div>
 </div>
-
-<div
-  id="players"
-  class="value"
->
-Loading...
-</div>
-
-</div>
-
 
 <div class="card">
-
-<div class="label">
-Uptime
+<div class="label">Uptime</div>
+<div id="uptime" class="value">Loading...</div>
 </div>
-
-<div
-  id="uptime"
-  class="value"
->
-Loading...
-</div>
-
-</div>
-
 
 <div class="card">
-
-<div class="label">
-Reconnect Attempts
+<div class="label">Reconnect Attempts</div>
+<div id="reconnect" class="value">Loading...</div>
 </div>
-
-<div
-  id="reconnect"
-  class="value"
->
-Loading...
-</div>
-
-</div>
-
 
 <div class="card">
-
-<div class="label">
-Last Activity
+<div class="label">Last Activity</div>
+<div id="activity" class="value">Loading...</div>
 </div>
-
-<div
-  id="activity"
-  class="value"
->
-Loading...
-</div>
-
-</div>
-
 
 <div class="card">
 
@@ -245,9 +164,7 @@ Loading...
 Errors
 </div>
 
-<pre
-  id="errors"
->Loading...</pre>
+<pre id="errors">Loading...</pre>
 
 </div>
 
@@ -265,7 +182,6 @@ async function updateStatus() {
 
     const data =
       await response.json();
-
 
     const status =
       document.getElementById('status');
@@ -300,21 +216,7 @@ async function updateStatus() {
       status.className =
         'value online';
 
-    }
-
-    else if (
-      data.waitingForEmptyServer
-    ) {
-
-      status.textContent =
-        '🟡 MENUNGGU SERVER KOSONG';
-
-      status.className =
-        'value waiting';
-
-    }
-
-    else {
+    } else {
 
       status.textContent =
         '🔴 OFFLINE';
@@ -352,9 +254,7 @@ async function updateStatus() {
       errors.textContent =
         data.errors.join('\\n');
 
-    }
-
-    else {
+    } else {
 
       errors.textContent =
         'Tidak ada error';
@@ -382,7 +282,6 @@ setInterval(
 </script>
 
 </body>
-
 </html>
   `);
 
@@ -444,11 +343,10 @@ body {
 
 <div class="card">
 
-<h2>Server Empty Mode</h2>
+<h2>Auto Reconnect</h2>
 
 <p>
-Bot hanya akan mencoba masuk ketika server
-tidak mempunyai player lain.
+Bot akan mencoba reconnect apabila koneksi Minecraft terputus.
 </p>
 
 </div>
@@ -458,18 +356,17 @@ tidak mempunyai player lain.
 <h2>Anti AFK</h2>
 
 <p>
-Bot melakukan beberapa aktivitas kecil agar
-tidak mudah dianggap AFK.
+Bot melakukan aktivitas kecil secara berkala.
 </p>
 
 </div>
 
 <div class="card">
 
-<h2>Auto Reconnect</h2>
+<h2>Movement</h2>
 
 <p>
-Bot akan mencoba reconnect ketika disconnect.
+Bot dapat bergerak, melihat sekitar dan melakukan jump.
 </p>
 
 </div>
@@ -497,9 +394,6 @@ app.get('/health', (req, res) => {
 
     connected:
       botState.connected,
-
-    waitingForEmptyServer:
-      botState.waitingForEmptyServer,
 
     username:
       config['bot-account'].username,
@@ -533,17 +427,22 @@ app.get('/health', (req, res) => {
       bot &&
       bot.entity
         ? {
-            x: Math.round(
-              bot.entity.position.x
-            ),
 
-            y: Math.round(
-              bot.entity.position.y
-            ),
+            x:
+              Math.round(
+                bot.entity.position.x
+              ),
 
-            z: Math.round(
-              bot.entity.position.z
-            )
+            y:
+              Math.round(
+                bot.entity.position.y
+              ),
+
+            z:
+              Math.round(
+                bot.entity.position.z
+              )
+
           }
         : null
 
@@ -637,6 +536,36 @@ function addError(error) {
     botState.errors.shift();
 
   }
+
+}
+
+
+/* =========================================================
+   GET OTHER PLAYERS
+========================================================= */
+
+function getOtherPlayers() {
+
+  if (
+    !bot ||
+    !bot.players
+  ) {
+
+    return [];
+
+  }
+
+  const botUsername =
+    config['bot-account'].username;
+
+  return Object.keys(
+    bot.players
+  ).filter(
+    username =>
+      username &&
+      username.toLowerCase() !==
+        botUsername.toLowerCase()
+  );
 
 }
 
@@ -744,349 +673,7 @@ function getReconnectDelay() {
 
 
 /* =========================================================
-   SERVER EMPTY CONFIG
-========================================================= */
-
-function isServerEmptyModeEnabled() {
-
-  return (
-    config.utils?.[
-      'server-empty-only'
-    ]?.enabled === true
-  );
-
-}
-
-
-function getServerEmptyCheckInterval() {
-
-  return (
-    Number(
-      config.utils?.[
-        'server-empty-only'
-      ]?.[
-        'check-interval'
-      ]
-    ) || 15000
-  );
-
-}
-
-
-function shouldLeaveWhenPlayerJoins() {
-
-  return (
-    config.utils?.[
-      'server-empty-only'
-    ]?.[
-      'leave-when-player-joins'
-    ] !== false
-  );
-
-}
-
-
-/* =========================================================
-   GET OTHER PLAYERS
-========================================================= */
-
-function getOtherPlayers() {
-
-  if (
-    !bot ||
-    !bot.players
-  ) {
-
-    return [];
-
-  }
-
-  const botUsername =
-    config[
-      'bot-account'
-    ].username;
-
-
-  return Object.keys(
-    bot.players
-  ).filter(
-    username =>
-      username &&
-      username.toLowerCase() !==
-        botUsername.toLowerCase()
-  );
-
-}
-
-
-/* =========================================================
-   CHECK SERVER EMPTY
-========================================================= */
-
-function checkServerEmpty() {
-
-  return new Promise(
-    (resolve) => {
-
-      const address =
-        `${config.server.ip}:${config.server.port}`;
-
-      const url =
-        `https://api.mcsrvstat.us/3/${encodeURIComponent(
-          address
-        )}`;
-
-
-      const request =
-        https.get(
-          url,
-          {
-            headers: {
-              'User-Agent':
-                'AFK-Bot'
-            },
-
-            timeout: 10000
-
-          },
-
-          (response) => {
-
-            let body = '';
-
-
-            response.on(
-              'data',
-              (chunk) => {
-
-                body += chunk;
-
-              }
-            );
-
-
-            response.on(
-              'end',
-              () => {
-
-                try {
-
-                  const data =
-                    JSON.parse(
-                      body
-                    );
-
-
-                  if (
-                    !data.online
-                  ) {
-
-                    console.log(
-                      '[ServerCheck] Server offline atau status tidak tersedia.'
-                    );
-
-                    resolve(false);
-
-                    return;
-
-                  }
-
-
-                  const online =
-                    Number(
-                      data.players?.online ||
-                      0
-                    );
-
-
-                  console.log(
-                    `[ServerCheck] Player online: ${online}`
-                  );
-
-
-                  resolve(
-                    online === 0
-                  );
-
-                }
-
-                catch (error) {
-
-                  console.log(
-                    '[ServerCheck] Gagal membaca response server.'
-                  );
-
-                  resolve(false);
-
-                }
-
-              }
-            );
-
-          }
-        );
-
-
-      request.on(
-        'error',
-        (error) => {
-
-          console.log(
-            `[ServerCheck] API error: ${error.message}`
-          );
-
-          resolve(false);
-
-        }
-      );
-
-
-      request.on(
-        'timeout',
-        () => {
-
-          request.destroy();
-
-          console.log(
-            '[ServerCheck] API timeout.'
-          );
-
-          resolve(false);
-
-        }
-      );
-
-    }
-  );
-
-}
-
-
-/* =========================================================
-   WAIT FOR EMPTY SERVER
-========================================================= */
-
-function scheduleEmptyServerCheck() {
-
-  if (
-    reconnectTimeoutId
-  ) {
-
-    return;
-
-  }
-
-  const interval =
-    getServerEmptyCheckInterval();
-
-
-  botState.waitingForEmptyServer =
-    true;
-
-
-  console.log(
-    `[ServerCheck] Server belum kosong. Cek lagi dalam ${interval / 1000} detik.`
-  );
-
-
-  reconnectTimeoutId =
-    setTimeout(
-      () => {
-
-        reconnectTimeoutId =
-          null;
-
-        tryCreateBot();
-
-      },
-
-      interval
-    );
-
-}
-
-
-/* =========================================================
-   TRY CREATE BOT
-========================================================= */
-
-async function tryCreateBot() {
-
-  if (
-    botState.connected
-  ) {
-
-    return;
-
-  }
-
-
-  if (
-    isReconnecting
-  ) {
-
-    return;
-
-  }
-
-
-  if (
-    bot
-  ) {
-
-    return;
-
-  }
-
-
-  /* ===============================================
-     SERVER EMPTY CHECK
-  =============================================== */
-
-  if (
-    isServerEmptyModeEnabled()
-  ) {
-
-    botState.waitingForEmptyServer =
-      true;
-
-
-    console.log(
-      '[ServerCheck] Mengecek jumlah player...'
-    );
-
-
-    const empty =
-      await checkServerEmpty();
-
-
-    if (!empty) {
-
-      scheduleEmptyServerCheck();
-
-      return;
-
-    }
-
-
-    console.log(
-      '[ServerCheck] Server kosong. Bot akan masuk.'
-    );
-
-
-    botState.waitingForEmptyServer =
-      false;
-
-  }
-
-
-  createBotConnection();
-
-}
-
-
-/* =========================================================
-   CREATE BOT CONNECTION
+   CREATE BOT
 ========================================================= */
 
 function createBotConnection() {
@@ -1190,7 +777,6 @@ function createBotConnection() {
             '[Bot] Connection timeout.'
           );
 
-
           try {
 
             if (bot) {
@@ -1228,10 +814,6 @@ function createBotConnection() {
         true;
 
 
-      botState.waitingForEmptyServer =
-        false;
-
-
       botState.reconnectAttempts =
         0;
 
@@ -1240,75 +822,13 @@ function createBotConnection() {
         Date.now();
 
 
+      isReconnecting =
+        false;
+
+
       console.log(
         `[Bot] Berhasil masuk sebagai ${bot.username}`
       );
-
-
-      /* ===============================================
-         PLAYER MONITOR
-      =============================================== */
-
-      if (
-        isServerEmptyModeEnabled() &&
-        shouldLeaveWhenPlayerJoins()
-      ) {
-
-        addInterval(
-          () => {
-
-            if (
-              !bot ||
-              !botState.connected
-            ) {
-
-              return;
-
-            }
-
-
-            const players =
-              getOtherPlayers();
-
-
-            if (
-              players.length > 0
-            ) {
-
-              console.log(
-                `[ServerCheck] Player terdeteksi: ${players.join(', ')}`
-              );
-
-
-              console.log(
-                '[ServerCheck] Bot keluar karena player lain masuk.'
-              );
-
-
-              try {
-
-                bot.quit(
-                  'Player joined'
-                );
-
-              }
-
-              catch (error) {
-
-                console.log(
-                  `[Bot] Quit error: ${error.message}`
-                );
-
-              }
-
-            }
-
-          },
-
-          5000
-        );
-
-      }
 
 
       /* ===============================================
@@ -1415,7 +935,8 @@ function createBotConnection() {
       clearAllIntervals();
 
 
-      bot = null;
+      bot =
+        null;
 
 
       if (
@@ -1555,7 +1076,7 @@ function scheduleReconnect() {
         isReconnecting =
           false;
 
-        tryCreateBot();
+        createBotConnection();
 
       },
 
@@ -1620,6 +1141,10 @@ function initializeModules() {
             setTimeout(
               () => {
 
+                if (!bot) {
+                  return;
+                }
+
                 try {
 
                   bot.chat(
@@ -1646,6 +1171,10 @@ function initializeModules() {
 
             setTimeout(
               () => {
+
+                if (!bot) {
+                  return;
+                }
 
                 try {
 
@@ -1764,12 +1293,10 @@ function initializeModules() {
         config.position.x
       ) || 0;
 
-
     const y =
       Number(
         config.position.y
       ) || 100;
-
 
     const z =
       Number(
@@ -2302,7 +1829,6 @@ function initializeModules() {
 
 
           const hostileNames = [
-
             'zombie',
             'skeleton',
             'creeper',
@@ -2310,7 +1836,6 @@ function initializeModules() {
             'witch',
             'enderman',
             'phantom'
-
           ];
 
 
@@ -2431,14 +1956,12 @@ function initializeModules() {
 
 
           const hostileNames = [
-
             'zombie',
             'skeleton',
             'spider',
             'creeper',
             'witch',
             'enderman'
-
           ];
 
 
@@ -3015,8 +2538,8 @@ console.log(
 );
 
 console.log(
-  `Server Empty Mode: ${
-    isServerEmptyModeEnabled()
+  `Auto Reconnect: ${
+    config.utils?.['auto-reconnect']
       ? 'ON'
       : 'OFF'
   }`
@@ -3027,4 +2550,4 @@ console.log(
 );
 
 
-tryCreateBot();
+createBotConnection();
