@@ -2,7 +2,7 @@
   "name": "AFK Bot",
 
   "bot-account": {
-    "username": "USERNAME_BOT",
+    "username": "imgonnacream",
     "password": "",
     "type": "offline"
   },
@@ -24,7 +24,7 @@
   "utils": {
     "auto-auth": {
       "enabled": true,
-      "password": "PASSWORD_LOGIN_SERVER"
+      "password": "chalol78"
     },
 
     "anti-afk": {
