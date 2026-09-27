@@ -6,7 +6,7 @@
     "type": "offline"
   },
   "server": {
-    "ip": "Gabutt-ageo.aternos.me:60818",
+    "ip": "Gabutt-ageo.aternos.me",
     "port": 60818,
     "version": "",
     "try-creative": false
