@@ -2,7 +2,7 @@
   "name": "AFK Bot",
 
   "bot-account": {
-    "username": "wahyu",
+    "username": "klsdcnhdb",
     "password": "",
     "type": "offline"
   },
@@ -49,19 +49,7 @@
 
     "auto-reconnect-delay": 5000,
 
-    "max-reconnect-delay": 30000,
-
-    "server-empty-only": {
-      "enabled": true,
-      "check-interval": 15000,
-      "leave-when-player-joins": true
-    },
-
-    "periodic-rejoin": {
-      "enabled": false,
-      "min-interval": 20,
-      "max-interval": 60
-    }
+    "max-reconnect-delay": 30000
   },
 
   "movement": {
