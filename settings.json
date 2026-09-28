@@ -47,9 +47,9 @@
 
     "auto-reconnect": true,
 
-    "auto-reconnect-delay": 5000,
+    "auto-reconnect-delay": 1000,
 
-    "max-reconnect-delay": 30000
+    "max-reconnect-delay": 15000
   },
 
   "movement": {
